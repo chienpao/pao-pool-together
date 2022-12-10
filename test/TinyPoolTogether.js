@@ -19,9 +19,6 @@ describe("PoolTogether", () => {
 
     const tinyPoolTogetherFactory = await ethers.getContractFactory("TinyPoolTogether");
     contract = await tinyPoolTogetherFactory.deploy(
-      "PoolTogether",
-      "PT",
-      18,
       INITIAL_POOL_SIZE,
       TICKET_PRICE,
       ROUND_DURATION,

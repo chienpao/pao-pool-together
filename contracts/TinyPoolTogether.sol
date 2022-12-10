@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-// Uncomment this line to use console.log
-import "hardhat/console.sol";
-
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "hardhat/console.sol";
+import "./interfaces/ITinyPoolTogether.sol";
 
-contract TinyPoolTogether is Ownable {
+contract TinyPoolTogether is ITinyPoolTogether, Ownable {
 
-  // Define the event for when someone join the pool
-  event JoinPool(address user);
-
-  // Define the event for when a round ends with a winner
-  event EndRound(address winner);
-
-  string public name;
-  string public symbol;
-  uint8 public decimals;
   uint256 public pool;
   mapping(address => uint256) public deposits;
   mapping(address => uint256) public tickets;
@@ -29,16 +19,10 @@ contract TinyPoolTogether is Ownable {
   bool public roundActive;
 
   constructor(
-    string memory _name,
-    string memory _symbol,
-    uint8 _decimals,
     uint256 _initialPool,
     uint256 _ticketPrice,
     uint256 _roundDuration
-  ) public {
-    name = _name;
-    symbol = _symbol;
-    decimals = _decimals;
+  ){
     pool = _initialPool;
     ticketPrice = _ticketPrice;
     roundDuration = _roundDuration;
@@ -106,5 +90,9 @@ contract TinyPoolTogether is Ownable {
     payable(winner).transfer(amount);
     pool = 0;
     roundActive = false;
+  }
+
+  function setRoundActive() onlyOwner external{
+    roundActive = !roundActive;
   }
 }
