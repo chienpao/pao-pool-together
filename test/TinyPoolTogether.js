@@ -115,4 +115,39 @@ describe("PoolTogether", () => {
       "Cannot buy ticket while round is not active"
     );
   });
+
+  it("should allow users to withdraw their deposits if they are not the winner", async () => {
+    await contract.connect(user1).joinPool({ value: INITIAL_POOL_SIZE });
+    await contract.connect(user2).joinPool({ value: INITIAL_POOL_SIZE });
+
+    // increase 1 week for evm
+    await ethers.provider.send("evm_increaseTime", [ROUND_DURATION]);
+    await contract.endRound();
+
+    await contract.connect(user2).withdraw();
+  });
+
+  it("should not allow users to claim their prize if they are not the winner", async () => {
+    await contract.connect(user1).joinPool({ value: INITIAL_POOL_SIZE });
+    await contract.connect(user2).joinPool({ value: INITIAL_POOL_SIZE });
+
+    // increase 1 week for evm
+    await ethers.provider.send("evm_increaseTime", [ROUND_DURATION]);
+    await contract.endRound();
+
+    await expect(contract.connect(user2).claim()).to.be.rejectedWith(
+      "Cannot claim if you are not the winner"
+    );
+  });
+
+  it("should allow the winner to claim their prize", async () => {
+    await contract.connect(user1).joinPool({ value: INITIAL_POOL_SIZE });
+    await contract.connect(user2).joinPool({ value: INITIAL_POOL_SIZE });
+
+    // increase 1 week for evm
+    await ethers.provider.send("evm_increaseTime", [ROUND_DURATION]);
+    await contract.endRound();
+
+    await contract.connect(user1).claim();
+  });
 });

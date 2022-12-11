@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-// import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 import "./interfaces/ITinyPoolTogether.sol";
@@ -49,6 +49,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     //TODO: for random from chainlink
     uint randomIndex = 0;
     winner = userAddressArray[randomIndex];
+    console.log("winner: %s", winner);
 
     pool = 0;
     tickets[winner] = 0;
@@ -74,10 +75,10 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
 
   function withdraw() external {
     require(roundEnd <= block.timestamp, "Cannot withdraw before round has expired");
-    require(
-      msg.sender != winner,
-      "Cannot withdraw if you are the winner"
-    );
+    // require(
+    //   msg.sender == winner,
+    //   "Cannot withdraw if you are the winner"
+    // );
     uint256 amount = deposits[msg.sender];
     deposits[msg.sender] = 0;
     payable(msg.sender).transfer(amount);
@@ -86,6 +87,8 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
   function claim() external {
     require(roundEnd <= block.timestamp, "Cannot claim before round has expired");
     require(msg.sender == winner, "Cannot claim if you are not the winner");
+
+    //TODO: pool's not include everyone's balance, only staking revenue
     uint256 amount = pool*9/10;
     payable(winner).transfer(amount);
     pool = 0;
