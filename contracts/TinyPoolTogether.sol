@@ -65,12 +65,18 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     require(roundActive, "Cannot buy ticket while round is not active");
     require(roundEnd > block.timestamp, "Cannot buy ticket after round has expired");
     tickets[msg.sender] = tickets[msg.sender] + 1;
+
+    // Emit a BuyTicket event to notify other users
+    emit BuyTicket(msg.sender);
   }
 
   function startRound() onlyOwner external {
     require(!roundActive, "Cannot start round while round is already active");
     roundActive = true;
     roundEnd = block.timestamp + roundDuration;
+
+    // Emit a BuyTicket event to notify other users
+    emit StartRound();
   }
 
   function withdraw() external {
@@ -82,6 +88,9 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     uint256 amount = deposits[msg.sender];
     deposits[msg.sender] = 0;
     payable(msg.sender).transfer(amount);
+
+    // Emit a BuyTicket event to notify other users
+    emit WithDraw(msg.sender);
   }
 
   function claim() external {
@@ -93,6 +102,8 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     payable(winner).transfer(amount);
     pool = 0;
     roundActive = false;
+
+    emit Claim(winner);
   }
 
   function setRoundActive() onlyOwner external{
