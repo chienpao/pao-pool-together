@@ -8,7 +8,7 @@ const INITIAL_POOL_SIZE = 1000;
 const TICKET_PRICE = 100;
 const ROUND_DURATION = 60 * 60 * 24 * 7; // 1 week
 
-describe("PoolTogether", () => {
+describe("TinyPoolTogether", () => {
   let tinyPoolTogetherContract;
   let prizePoolContract;
   let owner;
