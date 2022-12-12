@@ -58,8 +58,6 @@ describe("PoolTogether", () => {
     await ethers.provider.send("evm_increaseTime", [ROUND_DURATION]);
     await tinyPoolTogetherContract.endRound();
 
-    // const pool = await tinyPoolTogetherContract.pool();
-    // expect(pool).to.equal(0);
     const deposit = await tinyPoolTogetherContract.deposits(user1.address);
     expect(deposit).to.equal(0);
   });

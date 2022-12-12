@@ -16,4 +16,10 @@ interface IPrizePool {
 
     // This function transfer reward to target
     function transferRewardTo(address target) external;
+
+    // This function get current balance.
+    function mockStakingAfterOneWeek() external;
+
+    //****** Interactive with Compound *******/
+    // function staking() external;
 }

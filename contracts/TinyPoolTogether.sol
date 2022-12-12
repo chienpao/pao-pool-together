@@ -48,12 +48,12 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     require(prizePool.getBalance() > 0, "Cannot end round with empty pool");
     require(roundEnd <= block.timestamp, "Cannot end round before it has expired");
 
+    prizePool.mockStakingAfterOneWeek();
+
     //TODO: for random from chainlink
     uint randomIndex = 0;
     winner = userAddressArray[randomIndex];
     console.log("winner: %s", winner);
-
-    // prizePool.poolBalance() = 0;
 
     tickets[winner] = 0;
     deposits[winner] = 0;
@@ -85,14 +85,9 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
 
   function withdraw() external {
     require(roundEnd <= block.timestamp, "Cannot withdraw before round has expired");
-    // require(
-    //   msg.sender == winner,
-    //   "Cannot withdraw if you are the winner"
-    // );
     uint256 amount = deposits[msg.sender];
     deposits[msg.sender] = 0;
     prizePool.transferTo(payable(msg.sender), amount);
-    // payable(msg.sender).transfer(amount);
 
     // Emit a BuyTicket event to notify other users
     emit WithDraw(msg.sender);
@@ -103,9 +98,6 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     require(msg.sender == winner, "Cannot claim if you are not the winner");
 
     //TODO: pool's not include everyone's balance, only staking revenue
-    // uint256 reward = prizePool.getReward();
-    // payable(winner).transfer(amount);
-    // prizePool.poolBalance() = 0;
     prizePool.transferRewardTo(payable(winner));
     roundActive = false;
 

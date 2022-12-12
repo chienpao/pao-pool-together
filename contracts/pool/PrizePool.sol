@@ -50,6 +50,10 @@ contract PrizePool is IPrizePool, Ownable {
         payable(target).transfer(getReward());
     }
 
+    function mockStakingAfterOneWeek() override external {
+        poolBalance +=1000;
+    }
+
     function getReward() private view returns (uint256 reward) {
         //TODO: retrieve fee as global parameter
         return (poolBalance * 5) / 10;

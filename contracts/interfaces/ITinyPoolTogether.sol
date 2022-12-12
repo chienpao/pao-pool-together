@@ -19,6 +19,4 @@ interface ITinyPoolTogether {
 
     // Define the event for when start a new round
     event Claim(address winner);
-
-    
 }
