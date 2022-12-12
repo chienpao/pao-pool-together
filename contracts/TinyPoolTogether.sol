@@ -8,103 +8,131 @@ import "./interfaces/ITinyPoolTogether.sol";
 import "./interfaces/IPrizePool.sol";
 
 contract TinyPoolTogether is ITinyPoolTogether, Ownable {
+    
+    // The participant deposits
+    mapping(address => uint256) public deposits;
 
-//   uint256 public pool;
-  mapping(address => uint256) public deposits;
-  mapping(address => uint256) public tickets;
-  address[] userAddressArray;
-  address public winner;
-  uint256 public ticketPrice;
-  uint256 public roundDuration;
-  uint256 public roundEnd;
-  bool public roundActive;
-  IPrizePool public immutable prizePool;
+    // The participant list
+    address[] participantList;
 
-  constructor(
-    IPrizePool _prizePool,
-    uint256 _ticketPrice,
-    uint256 _roundDuration
-  ){
-    prizePool = _prizePool;
-    ticketPrice = _ticketPrice;
-    roundDuration = _roundDuration;
-    roundEnd = block.timestamp + roundDuration;
-    roundActive = true;
-  }
+    // The round winner
+    address public winner;
 
-  function joinPool() external payable {
-    require(msg.value > 0, "Amount must be greater than 0");
-    require(roundActive, "Cannot join pool while round is not active");
-    deposits[msg.sender] = deposits[msg.sender] + msg.value;
-    prizePool.contribute{value: msg.value}();
-    userAddressArray.push(msg.sender);
-    console.log("joinPool msg.sender: %s", msg.sender);
+    // Round
+    uint256 public roundDuration;
+    uint256 public roundEnd;
+    bool public roundActive;
 
-    // Emit a JoinPool event to notify other users
-    emit JoinPool(msg.sender);
-  }
+    // The prize pool contract
+    IPrizePool public immutable prizePool;
 
-  function endRound() onlyOwner external {
-    require(prizePool.getBalance() > 0, "Cannot end round with empty pool");
-    require(roundEnd <= block.timestamp, "Cannot end round before it has expired");
+    // Ticket mapping for preparation
+    mapping(address => uint256) public tickets;
+    uint256 public ticketPrice;
 
-    prizePool.mockStakingAfterOneWeek();
+    constructor(
+        IPrizePool _prizePool,
+        uint256 _ticketPrice,
+        uint256 _roundDuration
+    ) {
+        prizePool = _prizePool;
+        ticketPrice = _ticketPrice;
+        roundDuration = _roundDuration;
+        roundEnd = block.timestamp + roundDuration;
+        roundActive = true;
+    }
 
-    //TODO: for random from chainlink
-    uint randomIndex = 0;
-    winner = userAddressArray[randomIndex];
-    console.log("winner: %s", winner);
+    function joinPool() external payable {
+        require(msg.value > 0, "Amount must be greater than 0");
+        require(roundActive, "Cannot join pool while round is not active");
+        deposits[msg.sender] = deposits[msg.sender] + msg.value;
+        prizePool.contribute{value: msg.value}();
+        participantList.push(msg.sender);
+        console.log("joinPool msg.sender: %s", msg.sender);
 
-    tickets[winner] = 0;
-    deposits[winner] = 0;
-    delete userAddressArray;
-    roundActive = false;
+        // Emit a JoinPool event to notify other users
+        emit JoinPool(msg.sender);
+    }
 
-    // Emit a EndRound event to notify other users
-    emit EndRound(winner);
-  }
+    function endRound() external onlyOwner {
+        require(prizePool.getBalance() > 0, "Cannot end round with empty pool");
+        require(
+            roundEnd <= block.timestamp,
+            "Cannot end round before it has expired"
+        );
 
-  function buyTicket() external payable {
-    require(msg.value >= ticketPrice, "Amount must be greater than or equal to the ticket price");
-    require(roundActive, "Cannot buy ticket while round is not active");
-    require(roundEnd > block.timestamp, "Cannot buy ticket after round has expired");
-    tickets[msg.sender] = tickets[msg.sender] + 1;
+        prizePool.mockStakingAfterOneWeek();
 
-    // Emit a BuyTicket event to notify other users
-    emit BuyTicket(msg.sender);
-  }
+        //TODO: for random from chainlink
+        uint256 randomIndex = 0;
+        winner = participantList[randomIndex];
+        console.log("winner: %s", winner);
 
-  function startRound() onlyOwner external {
-    require(!roundActive, "Cannot start round while round is already active");
-    roundActive = true;
-    roundEnd = block.timestamp + roundDuration;
+        tickets[winner] = 0;
+        deposits[winner] = 0;
+        delete participantList;
+        roundActive = false;
 
-    // Emit a StartRound event to notify other users
-    emit StartRound();
-  }
+        // Emit a EndRound event to notify other users
+        emit EndRound(winner);
+    }
 
-  function withdraw() external {
-    require(roundEnd <= block.timestamp, "Cannot withdraw before round has expired");
-    uint256 amount = deposits[msg.sender];
-    deposits[msg.sender] = 0;
-    prizePool.transferTo(payable(msg.sender), amount);
+    function buyTicket() external payable {
+        require(
+            msg.value >= ticketPrice,
+            "Amount must be greater than or equal to the ticket price"
+        );
+        require(roundActive, "Cannot buy ticket while round is not active");
+        require(
+            roundEnd > block.timestamp,
+            "Cannot buy ticket after round has expired"
+        );
+        tickets[msg.sender] = tickets[msg.sender] + 1;
 
-    // Emit a BuyTicket event to notify other users
-    emit WithDraw(msg.sender);
-  }
+        // Emit a BuyTicket event to notify other users
+        emit BuyTicket(msg.sender);
+    }
 
-  function claim() external {
-    require(roundEnd <= block.timestamp, "Cannot claim before round has expired");
-    require(msg.sender == winner, "Cannot claim if you are not the winner");
+    function startRound() external onlyOwner {
+        require(
+            !roundActive,
+            "Cannot start round while round is already active"
+        );
+        roundActive = true;
+        roundEnd = block.timestamp + roundDuration;
 
-    //TODO: pool's not include everyone's balance, only staking revenue
-    prizePool.transferRewardTo(payable(winner));
-    roundActive = false;
+        // Emit a StartRound event to notify other users
+        emit StartRound();
+    }
 
-    emit Claim(winner);
-  }
+    function withdraw() external {
+        require(
+            roundEnd <= block.timestamp,
+            "Cannot withdraw before round has expired"
+        );
+        uint256 amount = deposits[msg.sender];
+        deposits[msg.sender] = 0;
+        prizePool.transferTo(payable(msg.sender), amount);
 
-  function setRoundActive() onlyOwner external{
-    roundActive = !roundActive;
-  }
+        // Emit a BuyTicket event to notify other users
+        emit WithDraw(msg.sender);
+    }
+
+    function claim() external {
+        require(
+            roundEnd <= block.timestamp,
+            "Cannot claim before round has expired"
+        );
+        require(msg.sender == winner, "Cannot claim if you are not the winner");
+
+        //TODO: pool's not include everyone's balance, only staking revenue
+        prizePool.transferRewardTo(payable(winner));
+        roundActive = false;
+
+        emit Claim(winner);
+    }
+
+    function setRoundActive() external onlyOwner {
+        roundActive = !roundActive;
+    }
 }
