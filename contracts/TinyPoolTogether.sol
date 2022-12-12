@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+// import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 import "./interfaces/ITinyPoolTogether.sol";
+import "./interfaces/IPrizePool.sol";
 
 contract TinyPoolTogether is ITinyPoolTogether, Ownable {
 
-  uint256 public pool;
+//   uint256 public pool;
   mapping(address => uint256) public deposits;
   mapping(address => uint256) public tickets;
   address[] userAddressArray;
@@ -17,13 +18,14 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
   uint256 public roundDuration;
   uint256 public roundEnd;
   bool public roundActive;
+  IPrizePool public immutable prizePool;
 
   constructor(
-    uint256 _initialPool,
+    IPrizePool _prizePool,
     uint256 _ticketPrice,
     uint256 _roundDuration
   ){
-    pool = _initialPool;
+    prizePool = _prizePool;
     ticketPrice = _ticketPrice;
     roundDuration = _roundDuration;
     roundEnd = block.timestamp + roundDuration;
@@ -34,7 +36,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     require(msg.value > 0, "Amount must be greater than 0");
     require(roundActive, "Cannot join pool while round is not active");
     deposits[msg.sender] = deposits[msg.sender] + msg.value;
-    pool = pool + msg.value;
+    prizePool.contribute{value: msg.value}();
     userAddressArray.push(msg.sender);
     console.log("joinPool msg.sender: %s", msg.sender);
 
@@ -43,7 +45,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
   }
 
   function endRound() onlyOwner external {
-    require(pool > 0, "Cannot end round with empty pool");
+    require(prizePool.getBalance() > 0, "Cannot end round with empty pool");
     require(roundEnd <= block.timestamp, "Cannot end round before it has expired");
 
     //TODO: for random from chainlink
@@ -51,9 +53,11 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     winner = userAddressArray[randomIndex];
     console.log("winner: %s", winner);
 
-    pool = 0;
+    // prizePool.poolBalance() = 0;
+
     tickets[winner] = 0;
     deposits[winner] = 0;
+    delete userAddressArray;
     roundActive = false;
 
     // Emit a EndRound event to notify other users
@@ -75,7 +79,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     roundActive = true;
     roundEnd = block.timestamp + roundDuration;
 
-    // Emit a BuyTicket event to notify other users
+    // Emit a StartRound event to notify other users
     emit StartRound();
   }
 
@@ -87,7 +91,8 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     // );
     uint256 amount = deposits[msg.sender];
     deposits[msg.sender] = 0;
-    payable(msg.sender).transfer(amount);
+    prizePool.transferTo(payable(msg.sender), amount);
+    // payable(msg.sender).transfer(amount);
 
     // Emit a BuyTicket event to notify other users
     emit WithDraw(msg.sender);
@@ -98,9 +103,10 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     require(msg.sender == winner, "Cannot claim if you are not the winner");
 
     //TODO: pool's not include everyone's balance, only staking revenue
-    uint256 amount = pool*9/10;
-    payable(winner).transfer(amount);
-    pool = 0;
+    // uint256 reward = prizePool.getReward();
+    // payable(winner).transfer(amount);
+    // prizePool.poolBalance() = 0;
+    prizePool.transferRewardTo(payable(winner));
     roundActive = false;
 
     emit Claim(winner);
