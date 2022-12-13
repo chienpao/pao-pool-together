@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.17;
 
-// import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 import "../interfaces/IPrizePool.sol";
@@ -19,7 +18,7 @@ contract PrizePool is IPrizePool, Ownable {
         require(msg.value > 0, "Must contribute a positive amount.");
 
         poolBalance += msg.value;
-        console.log("contribute poolBalance: %s", poolBalance);
+        // console.log("contribute poolBalance: %s", poolBalance);
     }
 
     // This function allows users to withdraw money from the pool.
@@ -40,13 +39,13 @@ contract PrizePool is IPrizePool, Ownable {
 
     // This function transfer to target
     function transferTo(address target, uint256 amount) external override {
-        console.log("transferTo: %s", amount);
+        // console.log("transferTo: %s", amount);
         payable(target).transfer(amount);
     }
 
     // This function transfer reward to target
     function transferRewardTo(address target) external override {
-        console.log("transferRewardTo poolBalance: %s", poolBalance);
+        // console.log("transferRewardTo poolBalance: %s", poolBalance);
         payable(target).transfer(getReward());
     }
 

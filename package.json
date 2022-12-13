@@ -8,6 +8,7 @@
     "hardhat-test-utils": "^0.1.1"
   },
   "dependencies": {
+    "@chainlink/contracts": "^0.5.1",
     "@openzeppelin/contracts": "^4.8.0"
   }
 }

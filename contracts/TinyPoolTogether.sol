@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-// import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 import "./interfaces/ITinyPoolTogether.sol";
 import "./interfaces/IPrizePool.sol";
+import "./interfaces/IVRFv2Consumer.sol";
 
 contract TinyPoolTogether is ITinyPoolTogether, Ownable {
-    
     // The participant deposits
     mapping(address => uint256) public deposits;
 
@@ -18,7 +17,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     // The round winner
     address public winner;
 
-    // Round
+    // TODO: Round structure
     uint256 public roundDuration;
     uint256 public roundEnd;
     bool public roundActive;
@@ -26,16 +25,22 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     // The prize pool contract
     IPrizePool public immutable prizePool;
 
+    // The vrf contract
+    IVRFv2Consumer public immutable vrf;
+    uint256 requestId;
+
     // Ticket mapping for preparation
     mapping(address => uint256) public tickets;
     uint256 public ticketPrice;
 
     constructor(
         IPrizePool _prizePool,
+        IVRFv2Consumer _vrf,
         uint256 _ticketPrice,
         uint256 _roundDuration
     ) {
         prizePool = _prizePool;
+        vrf = _vrf;
         ticketPrice = _ticketPrice;
         roundDuration = _roundDuration;
         roundEnd = block.timestamp + roundDuration;
@@ -48,7 +53,6 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
         deposits[msg.sender] = deposits[msg.sender] + msg.value;
         prizePool.contribute{value: msg.value}();
         participantList.push(msg.sender);
-        console.log("joinPool msg.sender: %s", msg.sender);
 
         // Emit a JoinPool event to notify other users
         emit JoinPool(msg.sender);
@@ -63,18 +67,31 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
 
         prizePool.mockStakingAfterOneWeek();
 
-        //TODO: for random from chainlink
-        uint256 randomIndex = 0;
-        winner = participantList[randomIndex];
-        console.log("winner: %s", winner);
+        // get request id for random number
+        requestId = vrf.requestRandomWordsMock();
 
         tickets[winner] = 0;
-        deposits[winner] = 0;
-        delete participantList;
         roundActive = false;
 
         // Emit a EndRound event to notify other users
-        emit EndRound(winner);
+        emit EndRound();
+    }
+
+    function chooseWinner() external onlyOwner {
+        require(prizePool.getBalance() > 0, "Cannot end round with empty pool");
+        require(requestId > 0, "Cannot choose winner with invalid request id");
+
+        (bool fulfilled, uint256[1] memory randomWords) = vrf
+            .getRequestStatusMock(requestId);
+
+        require(fulfilled, "Still waiting to choose winner");
+
+        uint256 winnerIndex = randomWords[0] % participantList.length;
+        winner = participantList[winnerIndex];
+        delete participantList;
+        console.log("winner: %s", winner);
+
+        requestId = 0;
     }
 
     function buyTicket() external payable {
@@ -114,7 +131,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
         deposits[msg.sender] = 0;
         prizePool.transferTo(payable(msg.sender), amount);
 
-        // Emit a BuyTicket event to notify other users
+        // Emit a WithDraw event to notify other users
         emit WithDraw(msg.sender);
     }
 
@@ -129,6 +146,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
         prizePool.transferRewardTo(payable(winner));
         roundActive = false;
 
+        // Emit a Claim event to notify other users
         emit Claim(winner);
     }
 
