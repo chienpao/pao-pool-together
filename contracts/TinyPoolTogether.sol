@@ -143,8 +143,4 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
         // Emit a Claim event to notify other users
         emit Claim(winner);
     }
-
-    function setRoundActive() external onlyOwner {
-        roundActive = !roundActive;
-    }
 }
