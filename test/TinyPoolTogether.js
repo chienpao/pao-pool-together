@@ -13,6 +13,7 @@ describe("TinyPoolTogether", () => {
   let tinyPoolTogetherContract;
   let prizePoolContract;
   let vrfContract;
+  let ticketContract;
   let owner;
   let user1;
   let user2;
@@ -28,11 +29,16 @@ describe("TinyPoolTogether", () => {
       INITIAL_POOL_SIZE
     );
 
+    const ticketFactory = await ethers.getContractFactory("Ticket");
+    ticketContract = await ticketFactory.deploy(
+      TICKET_PRICE
+    );
+
     const tinyPoolTogetherFactory = await ethers.getContractFactory("TinyPoolTogether");
     tinyPoolTogetherContract = await tinyPoolTogetherFactory.deploy(
       prizePoolContract.address,
       vrfContract.address,
-      TICKET_PRICE,
+      ticketContract.address,
       ROUND_DURATION,
     );
     const [ownerEther, user1Ether, user2Ether] = await ethers.getSigners();
@@ -60,37 +66,25 @@ describe("TinyPoolTogether", () => {
     expect(winner).to.be.oneOf([user1.address, user2.address]);
   });
 
-  // it("should reset the pool and user deposits when a round ends", async () => {
-  //   await tinyPoolTogetherContract.connect(user1).joinPool({ value: INITIAL_POOL_SIZE });
+  it("should allow users to purchase tickets and enter the lottery multiple times", async () => {
+    await tinyPoolTogetherContract.connect(user1).buyTicket({ value: TICKET_PRICE });
+    await tinyPoolTogetherContract.connect(user1).buyTicket({ value: TICKET_PRICE });
+    const tickets = await ticketContract.tickets(user1.address);
+    expect(tickets).to.equal(2);
+  });
 
-  //   // increase 1 week for evm
-  //   await ethers.provider.send("evm_increaseTime", [ROUND_DURATION]);
-  //   await tinyPoolTogetherContract.endRound();
-  //   await tinyPoolTogetherContract.connect(owner).chooseWinner();
+  it("should reset the user's ticket count when a round ends", async () => {
+    await tinyPoolTogetherContract.connect(user1).joinPool({ value: INITIAL_POOL_SIZE });
+    await tinyPoolTogetherContract.connect(user1).buyTicket({ value: TICKET_PRICE });
 
-  //   const deposit = await tinyPoolTogetherContract.deposits(user1.address);
-  //   expect(deposit).to.equal(0);
-  // });
+    // increase 1 week for evm
+    await ethers.provider.send("evm_increaseTime", [ROUND_DURATION]);
+    await tinyPoolTogetherContract.endRound();
+    await tinyPoolTogetherContract.chooseWinner();
 
-  // it("should allow users to purchase tickets and enter the lottery multiple times", async () => {
-  //   await tinyPoolTogetherContract.connect(user1).buyTicket({ value: TICKET_PRICE });
-  //   await tinyPoolTogetherContract.connect(user1).buyTicket({ value: TICKET_PRICE });
-  //   const tickets = await tinyPoolTogetherContract.tickets(user1.address);
-  //   expect(tickets).to.equal(2);
-  // });
-
-  // it("should reset the user's ticket count when a round ends", async () => {
-  //   await tinyPoolTogetherContract.connect(user1).joinPool({ value: INITIAL_POOL_SIZE });
-  //   await tinyPoolTogetherContract.connect(user1).buyTicket({ value: TICKET_PRICE });
-
-  //   // increase 1 week for evm
-  //   await ethers.provider.send("evm_increaseTime", [ROUND_DURATION]);
-  //   await tinyPoolTogetherContract.endRound();
-  //   await tinyPoolTogetherContract.chooseWinner();
-
-  //   const tickets = await tinyPoolTogetherContract.tickets(user1.address);
-  //   expect(tickets).to.equal(0);
-  // });
+    const tickets = await ticketContract.tickets(user1.address);
+    expect(tickets).to.equal(0);
+  });
 
   it("should allow the tinyPoolTogetherContract owner to start a new round", async () => {
     await tinyPoolTogetherContract.connect(user1).joinPool({ value: INITIAL_POOL_SIZE });

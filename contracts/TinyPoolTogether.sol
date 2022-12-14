@@ -6,6 +6,7 @@ import "hardhat/console.sol";
 import "./interfaces/ITinyPoolTogether.sol";
 import "./interfaces/IPrizePool.sol";
 import "./interfaces/IVRFv2Consumer.sol";
+import "./interfaces/ITicket.sol";
 
 contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     // The participant deposits
@@ -17,7 +18,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     // The round winner
     address public winner;
 
-    // TODO: Round structure
+    // Round related
     uint256 public roundDuration;
     uint256 public roundEnd;
     bool public roundActive;
@@ -29,19 +30,18 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
     IVRFv2Consumer public immutable vrf;
     uint256 requestId;
 
-    // Ticket mapping for preparation
-    mapping(address => uint256) public tickets;
-    uint256 public ticketPrice;
+    // The prize pool contract
+    ITicket public immutable ticket;
 
     constructor(
         IPrizePool _prizePool,
         IVRFv2Consumer _vrf,
-        uint256 _ticketPrice,
+        ITicket _ticket,
         uint256 _roundDuration
     ) {
         prizePool = _prizePool;
         vrf = _vrf;
-        ticketPrice = _ticketPrice;
+        ticket = _ticket;
         roundDuration = _roundDuration;
         roundEnd = block.timestamp + roundDuration;
         roundActive = true;
@@ -53,6 +53,7 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
         deposits[msg.sender] = deposits[msg.sender] + msg.value;
         prizePool.contribute{value: msg.value}();
         participantList.push(msg.sender);
+        // console.log("joinPool msg.sender: %s", msg.sender);
 
         // Emit a JoinPool event to notify other users
         emit JoinPool(msg.sender);
@@ -70,7 +71,6 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
         // get request id for random number
         requestId = vrf.requestRandomWordsMock();
 
-        tickets[winner] = 0;
         roundActive = false;
 
         // Emit a EndRound event to notify other users
@@ -88,26 +88,11 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
 
         uint256 winnerIndex = randomWords[0] % participantList.length;
         winner = participantList[winnerIndex];
+        ticket.clearWinnerTicket(winner);
         delete participantList;
-        console.log("winner: %s", winner);
+        // console.log("winner: %s", winner);
 
         requestId = 0;
-    }
-
-    function buyTicket() external payable {
-        require(
-            msg.value >= ticketPrice,
-            "Amount must be greater than or equal to the ticket price"
-        );
-        require(roundActive, "Cannot buy ticket while round is not active");
-        require(
-            roundEnd > block.timestamp,
-            "Cannot buy ticket after round has expired"
-        );
-        tickets[msg.sender] = tickets[msg.sender] + 1;
-
-        // Emit a BuyTicket event to notify other users
-        emit BuyTicket(msg.sender);
     }
 
     function startRound() external onlyOwner {
@@ -120,6 +105,15 @@ contract TinyPoolTogether is ITinyPoolTogether, Ownable {
 
         // Emit a StartRound event to notify other users
         emit StartRound();
+    }
+
+    function buyTicket() external payable{
+        require(roundActive, "Cannot buy ticket while round is not active");
+        require(
+            roundEnd > block.timestamp,
+            "Cannot buy ticket after round has expired"
+        );
+        ticket.buyTicket{value: msg.value}(msg.sender);
     }
 
     function withdraw() external {
